@@ -48,7 +48,7 @@ class RetrofitManager private constructor() {
         }
 
         private fun checkIsInitialize() {
-            if (!this::sInstance::isInitialized.get()) {
+            if (!::sInstance.isInitialized) {
                 throw RuntimeException("RetrofitManager does not init, please init it first.")
             }
         }
@@ -116,7 +116,7 @@ class RetrofitManager private constructor() {
             val retrofitManager = RetrofitManager()
             mRetrofitBuilder.validateEagerly(true)
 
-            if (!::mGson::isInitialized.get()) {
+            if (!::mGson.isInitialized) {
                 retrofitManager.gson = GsonBuilder()
                     .serializeNulls()
                     .setLenient()
