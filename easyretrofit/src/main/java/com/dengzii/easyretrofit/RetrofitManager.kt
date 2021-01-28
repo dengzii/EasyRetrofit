@@ -34,11 +34,6 @@ class RetrofitManager private constructor() {
             return sInstance
         }
 
-        fun getGson(): Gson {
-            checkIsInitialize()
-            return sInstance.gson
-        }
-
         fun <T> create(c: Class<T>): T {
             return getInstance().mRetrofit.create(c)
         }
@@ -69,7 +64,21 @@ class RetrofitManager private constructor() {
 
         override fun baseUrl(url: String) = apply { mRetrofitBuilder.baseUrl(url) }
 
-        override fun verifiedHost(hostname: String) = apply { mHostnameVerifier.addHost(hostname) }
+        override fun connectionTimeout(millSecond: Long) = apply {
+            mOkHttpBuilder.connectTimeout(millSecond, TimeUnit.MILLISECONDS)
+        }
+
+        override fun readTimeout(millSecond: Long) = apply {
+            mOkHttpBuilder.readTimeout(millSecond, TimeUnit.MILLISECONDS)
+        }
+
+        override fun writeTimeout(millSecond: Long) = apply {
+            mOkHttpBuilder.writeTimeout(millSecond, TimeUnit.MILLISECONDS)
+        }
+
+        override fun verifiedHost(hostname: String) = apply {
+            mHostnameVerifier.addHost(hostname)
+        }
 
         override fun logger(logger: Logger?) = apply { mLoggerManager.logger = logger }
 
@@ -95,18 +104,6 @@ class RetrofitManager private constructor() {
             mOkHttpBuilder.cache(Cache(file, size))
         }
 
-        override fun connectionTimeout(millSecond: Long) = apply {
-            mOkHttpBuilder.connectTimeout(millSecond, TimeUnit.MILLISECONDS)
-        }
-
-        override fun readTimeout(millSecond: Long) = apply {
-            mOkHttpBuilder.readTimeout(millSecond, TimeUnit.MILLISECONDS)
-        }
-
-        override fun writeTimeout(millSecond: Long) = apply {
-            mOkHttpBuilder.writeTimeout(millSecond, TimeUnit.MILLISECONDS)
-        }
-
         override fun build() {
 
             if (mLoggerManager.logger != null) {
@@ -117,7 +114,7 @@ class RetrofitManager private constructor() {
             mRetrofitBuilder.validateEagerly(true)
 
             if (!::mGson.isInitialized) {
-                retrofitManager.gson = GsonBuilder()
+                mGson = GsonBuilder()
                     .serializeNulls()
                     .setLenient()
                     .create()
