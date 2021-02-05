@@ -1,17 +1,14 @@
 package com.dengzii.easyretrofit.interceptor
 
 import com.dengzii.easyretrofit.CommonRequestBody
-import com.dengzii.easyretrofit.JsonRequestBody
 import com.dengzii.easyretrofit.NetworkException
 import com.dengzii.easyretrofit.RetrofitManager
 import com.dengzii.easyretrofit.interfaces.GlobalParamProvider
 import com.dengzii.easyretrofit.interfaces.Logger
 import com.dengzii.easyretrofit.interfaces.NetworkLogger
 import com.google.gson.JsonObject
-import com.google.gson.JsonPrimitive
 import okhttp3.*
 import okhttp3.MediaType.Companion.toMediaType
-import okhttp3.RequestBody.Companion.toRequestBody
 import okio.Buffer
 import java.io.IOException
 
@@ -32,7 +29,8 @@ class GeneralParamInterceptor(
     @Throws(IOException::class)
     override fun intercept(chain: Interceptor.Chain): Response {
 
-        var request = chain.request()
+        val request = chain.request()
+        val requestBuilder = request.newBuilder()
         val originParameters = try {
             getRequestParameters(request)
         } catch (e: Throwable) {
@@ -40,7 +38,7 @@ class GeneralParamInterceptor(
             throw NetworkException("Can not read request parameter.", e)
         }
 
-        val globalParameters = mParamProvider.getParam(
+        val globalParameters = mParamProvider.getBodyParam(
             request.method,
             request.url.toString(),
             originParameters
@@ -58,18 +56,39 @@ class GeneralParamInterceptor(
                     mLogger.e(Logger.REQUEST_BODY, TAG,
                         Exception("failed to attach common parameters to ${request.url}"))
                 }
-                request = request.newBuilder()
+                requestBuilder
                     .method(request.method, nBody)
-                    .build()
             }
             if ("GET" == request.method) {
-                request = request.newBuilder()
+                requestBuilder
                     .method(request.method, request.body)
                     .url(attachToGet(request, globalParameters))
-                    .build()
             }
         }
-        return chain.proceed(request)
+        val queryParam = mParamProvider.getQueryParam(request, originParameters)
+        if (queryParam.isNotEmpty()) {
+            val url = request.url
+            val newUrlBuilder = url.newBuilder()
+            queryParam.forEach {
+                if (url.queryParameter(it.key).isNullOrBlank()) {
+                    newUrlBuilder.addQueryParameter(it.key, it.value)
+                }
+            }
+            requestBuilder.url(newUrlBuilder.build())
+        }
+
+        val headers = mParamProvider.getHeader(request, originParameters)
+        if (headers.isNotEmpty()) {
+            val hd = request.headers
+            val hdBuilder = hd.newBuilder()
+            headers.forEach {
+                if (hd[it.key].isNullOrBlank()) {
+                    hdBuilder.add(it.key, it.value)
+                }
+            }
+            requestBuilder.headers(hdBuilder.build())
+        }
+        return chain.proceed(requestBuilder.build())
     }
 
     private fun getRequestParameters(originRequest: Request): Map<String, String> {
